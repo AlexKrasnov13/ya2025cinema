@@ -1,0 +1,77 @@
+@startuml C4_Container_TOBE
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Контейнерная диаграмма КиноБездна (TO-BE архитектура)
+
+Person(mobile_user, "Мобильный пользователь", "Пользователь с мобильного устройства")
+Person(web_user, "Веб-пользователь", "Пользователь с браузера")
+Person(tv_user, "Пользователь Smart TV", "Пользователь со Smart TV")
+
+System_Ext(recommendations, "Рекомендательная система", "Внешняя система рекомендаций на основе ML")
+
+System_Boundary(kubernetes, "Kubernetes кластер") {
+
+    Container(api_gateway, "API Gateway", "Go", "Единая точка входа для маршрутизации трафика к микросервисам")
+
+    Container_Boundary(microservices, "Микросервисы") {
+        Container(movies_service, "Сервис фильмов", "Go", "Управление метаданными фильмов, жанрами, актерами, оценками")
+        Container(users_service, "Сервис пользователей", "Go", "Управление учетными записями и аутентификацией")
+        Container(video_service, "Сервис видео", "Go", "Управление видеоконтентом и избранным")
+        Container(payments_service, "Сервис платежей", "Go", "Обработка платежей и транзакций")
+        Container(subscriptions_service, "Сервис подписок", "Go", "Управление подписками и тарифными планами")
+        Container(discounts_service, "Сервис скидок", "Go", "Управление скидками и промокодами")
+        Container(events_service, "Сервис событий", "Go", "Обработка асинхронных событий через Kafka")
+    }
+
+    Container_Boundary(data_layer, "Слой данных") {
+        ContainerDb(movies_db, "БД фильмов", "PostgreSQL", "Хранит метаданные фильмов")
+        ContainerDb(users_db, "БД пользователей", "PostgreSQL", "Хранит учетные записи пользователей")
+        ContainerDb(video_db, "БД видео", "PostgreSQL", "Хранит метаданные видео")
+        ContainerDb(payments_db, "БД платежей", "PostgreSQL", "Хранит платежные транзакции")
+        ContainerDb(subscriptions_db, "БД подписок", "PostgreSQL", "Хранит данные о подписках")
+        ContainerDb(discounts_db, "БД скидок", "PostgreSQL", "Хранит промокоды и скидки")
+    }
+
+    Container_Boundary(messaging, "Брокер сообщений") {
+        Container(kafka, "Apache Kafka", "Kafka", "Платформа потоковой обработки событий")
+        Container(zookeeper, "Zookeeper", "Zookeeper", "Сервис координации Kafka")
+    }
+}
+
+Rel(mobile_user, api_gateway, "Использует", "HTTPS")
+Rel(web_user, api_gateway, "Использует", "HTTPS")
+Rel(tv_user, api_gateway, "Использует", "HTTPS")
+
+Rel(api_gateway, movies_service, "Фильмы", "HTTP")
+Rel(api_gateway, users_service, "Пользователи", "HTTP")
+Rel(api_gateway, video_service, "Видео", "HTTP")
+Rel(api_gateway, payments_service, "Платежи", "HTTP")
+Rel(api_gateway, subscriptions_service, "Подписки", "HTTP")
+Rel(api_gateway, discounts_service, "Скидки", "HTTP")
+Rel(api_gateway, events_service, "События", "HTTP")
+
+Rel(movies_service, movies_db, "SQL")
+Rel(users_service, users_db, "SQL")
+Rel(video_service, video_db, "SQL")
+Rel(payments_service, payments_db, "SQL")
+Rel(subscriptions_service, subscriptions_db, "SQL")
+Rel(discounts_service, discounts_db, "SQL")
+
+Rel(kafka, zookeeper, "TCP")
+Rel(events_service, kafka, "Consumer/Producer", "Kafka")
+Rel(payments_service, kafka, "Producer", "Kafka")
+Rel(users_service, kafka, "Producer", "Kafka")
+Rel(video_service, kafka, "Producer", "Kafka")
+Rel(subscriptions_service, kafka, "Producer", "Kafka")
+
+Rel(video_service, users_service, "Валидация", "HTTP")
+Rel(video_service, movies_service, "Метаданные", "HTTP")
+Rel(subscriptions_service, users_service, "Валидация", "HTTP")
+Rel(subscriptions_service, payments_service, "Оплата", "HTTP")
+Rel(payments_service, users_service, "Валидация", "HTTP")
+Rel(discounts_service, subscriptions_service, "Скидка", "HTTP")
+
+Rel(video_service, recommendations, "Рекомендации", "HTTP")
+Rel(recommendations, movies_service, "Метаданные", "HTTP")
+
+@enduml

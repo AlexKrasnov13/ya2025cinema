@@ -26,13 +26,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -40,7 +45,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Monolith
         id: meta-monolith
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.MONOLITH_IMAGE_NAME }}
           tags: |
@@ -51,10 +56,11 @@ jobs:
             latest
 
       - name: Build and push Monolith Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ./src/monolith
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta-monolith.outputs.tags }}
           labels: ${{ steps.meta-monolith.outputs.labels }}
           cache-from: type=gha
@@ -62,7 +68,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Movies Service
         id: meta-movies
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.MOVIES_SERVICE_IMAGE_NAME }}
           tags: |
@@ -73,13 +79,114 @@ jobs:
             latest
 
       - name: Build and push Movies Service Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ./src/microservices/movies
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta-movies.outputs.tags }}
           labels: ${{ steps.meta-movies.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      
+      - name: Extract metadata (tags, labels) for Events Service
+        id: meta-events
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.EVENTS_SERVICE_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+            latest
+
+      - name: Build and push Events Service Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/microservices/events
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-events.outputs.tags }}
+          labels: ${{ steps.meta-events.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (tags, labels) for Proxy Service
+        id: meta-proxy
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.PROXY_SERVICE_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+            latest
+
+      - name: Build and push Proxy Service Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/microservices/proxy
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-proxy.outputs.tags }}
+          labels: ${{ steps.meta-proxy.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  api-tests:
+    name: Run API Tests
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          docker compose --version
+
+      - name: Start services with Docker Compose
+        run: |
+          docker compose up -d --wait
+          echo "All services are healthy and ready"
+
+      - name: Verify services status
+        run: |
+          echo "Checking services status..."
+          docker compose ps
+          echo "Checking network..."
+          docker network inspect cinemaabyss-network
+
+      - name: Build test container
+        working-directory: tests/postman
+        run: |
+          docker build -t cinemaabyss-api-tests .
+
+      - name: Run API tests
+        run: |
+          # Run the tests in Docker with the same network as services
+          docker run --rm \
+            --network cinemaabyss-network \
+            -v "$(pwd)/tests/postman/reports:/app/reports" \
+            cinemaabyss-api-tests --environment docker
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: tests/postman/reports/
+          retention-days: 30
+
+      - name: Display logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Services Logs ==="
+          docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down

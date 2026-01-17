@@ -4,8 +4,11 @@
 
 1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
 Результат представьте в виде контейнерной диаграммы в нотации С4.
-Добавьте ссылку на файл в этот шаблон
-[ссылка на файл](ссылка)
+Добавьте ссылку на файл в этот шаблон:
+
+Архитектура TO-BE:
+[c4-container-tobe.puml](docs/diagrams/c4-container/c4-container-tobe.puml) 
+
 
 # Задание 2
 
@@ -58,7 +61,8 @@
 
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
-
+![kafka_topic_ui.png](docs/kafka_topic_ui.png)
+![test_local.png](docs/test_local.png)
 # Задание 3
 
 Команда начала переезд в Kubernetes для лучшего масштабирования и повышения надежности. 
@@ -108,13 +112,18 @@ jobs:
 ```
 Как только сборка отработает и в github registry появятся ваши образы, можно переходить к блоку настройки Kubernetes
 Успешным результатом данного шага является "зеленая" сборка и "зеленые" тесты
+--- 
+В рамках этого задания добавил в docker-compose healthcheck параметры для всех сервисов, 
+а так же вместо sleep 120 в файле [api-tests.yml](.github/workflows/api-tests.yml) сделал ожидание страрта контейнеров через wait т.к на мой взгляд так надежнее чем sleep.
+И пришлось сделать мультиплатформенную сброку под arm macos
 
+![test_done.png](docs/test_done.png)
 
 ### Proxy в Kubernetes
 
 #### Шаг 1
 Для деплоя в kubernetes необходимо залогиниться в docker registry Github'а.
-1. Создайте Personal Access Token (PAT) https://github.com/settings/tokens . Создавайте class с правом read:packages
+1. Создайте Personal Access Token (PAT) https://github.com/settings/tokens . Создавайте class с правом  
 2. В src/kubernetes/*.yaml (event-service, monolith, movies-service и proxy-service)  отредактируйте путь до ваших образов 
 ```bash
  spec:
@@ -276,6 +285,15 @@ cat .docker/config.json | base64
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
 
 
+Логи сервиса событий:
+![event-service-log.png](docs/event-service-log.png)
+ 
+Вызов movies:
+![mainpage.png](docs/mainpage.png)
+
+P.S
+
+Пришлось порезать некоторые лимиты и реквесты, кафка падала с ООМ. т.к миникуб слабенький только получилось поднять локально.
 # Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 
 
@@ -349,6 +367,18 @@ minikube tunnel
 Потом вызовите 
 https://cinemaabyss.example.com/api/movies
 и приложите скриншот развертывания helm и вывода https://cinemaabyss.example.com/api/movies
+
+Helm deploy:
+
+![helm_deploy.png](docs/helm_deploy.png)
+
+API:
+![helm_movies.png](docs/helm_movies.png)
+
+P.S.
+
+На этом шаге кафка рестартовала переодически, пришлось немного увеличить время в livenessProbe и readinessProbe. (опять же вероятно из за слабенького minicube)
+
 
 ## Удаляем все
 
