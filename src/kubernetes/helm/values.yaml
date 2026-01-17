@@ -5,7 +5,7 @@ global:
 
 # Image pull secrets
 imagePullSecrets:
-  dockerconfigjson: ewoJImF1dGhzIjogewoJCSJnaGNyLmlvIjogewoJCQkiYXV0aCI6
+  dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJZV3hsZUd0eVlYTnViM1l4TXpwbmFIQmZTM0ZaUlVneVRGaFFhMlZxUTFkSGVqUmhSbk5YVHpOd1IySnpkMkZZTkVSR00wRlUifX19
 # Database configuration
 database:
   host: postgres
@@ -22,7 +22,7 @@ database:
       cpu: 1000m
       memory: 1Gi
     requests:
-      cpu: 500m
+      cpu: 200m
       memory: 512Mi
   persistence:
     enabled: true
@@ -33,7 +33,7 @@ database:
 monolith:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/monolith
+    repository: ghcr.io/alexkrasnov13/ya2025cinema/monolith
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -42,7 +42,7 @@ monolith:
       cpu: 500m
       memory: 512Mi
     requests:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
   service:
     port: 8080
@@ -53,7 +53,7 @@ monolith:
 proxyService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/proxy-service
+    repository: ghcr.io/alexkrasnov13/ya2025cinema/proxy-service
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -73,7 +73,7 @@ proxyService:
 moviesService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/movies-service
+    repository: ghcr.io/alexkrasnov13/ya2025cinema/movies-service
     tag: latest
     pullPolicy: Always
   replicas: 1
@@ -93,7 +93,7 @@ moviesService:
 eventsService:
   enabled: true
   image:
-    repository: ghcr.io/db-exp/cinemaabysstest/events-service
+    repository: ghcr.io/alexkrasnov13/ya2025cinema/events-service
     tag: latest
     pullPolicy: Always
   replicas: 1

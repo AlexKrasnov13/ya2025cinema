@@ -186,13 +186,17 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 9092
-          initialDelaySeconds: 15
+          initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         livenessProbe:
           tcpSocket:
             port: 9092
-          initialDelaySeconds: 60
-          periodSeconds: 20
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
       {{- if .Values.kafka.persistence.enabled }}
       volumes:
       - name: kafka-data
