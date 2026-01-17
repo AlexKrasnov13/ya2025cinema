@@ -36,34 +36,30 @@ jobs:
       - name: Start services with Docker Compose
         run: |
           docker compose up -d
-          # Wait for services to be ready
-          echo "Waiting for services to be ready..."
-          sleep 120
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: tests/postman/package-lock.json
-      
-      - name: Install Newman and dependencies
-        working-directory: tests/postman
-        run: npm install
-      
-      - name: Run API tests
+          echo "Waiting for services to be healthy..."
+          # Wait for all services to be healthy
+          timeout 300 sh -c 'until docker compose ps | grep -q "(healthy)"; do echo "Waiting for services..."; sleep 5; done' || echo "Timeout waiting for services"
+          docker compose ps
+          # Additional wait to ensure all services are fully ready
+          sleep 30
+
+      - name: Verify network exists
+        run: |
+          docker network ls
+          docker network inspect cinemaabyss-network || echo "Network not found"
+
+      - name: Build test container
         working-directory: tests/postman
         run: |
-
-          docker compose up -d
-          # Wait for services to be ready
-          echo "Waiting for services to be ready..."
-          sleep 15
-          # Build the Docker image
           docker build -t cinemaabyss-api-tests .
-          
-          # Run the tests in Docker
-          docker run --network=cinemaabyss-network -v "$(pwd)/reports:/app/reports" cinemaabyss-api-tests
+
+      - name: Run API tests
+        run: |
+          # Run the tests in Docker with the same network as services
+          docker run --rm \
+            --network cinemaabyss-network \
+            -v "$(pwd)/tests/postman/reports:/app/reports" \
+            cinemaabyss-api-tests --environment docker
         
       
       - name: Stop services
