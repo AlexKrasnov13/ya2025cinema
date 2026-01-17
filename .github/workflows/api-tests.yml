@@ -53,6 +53,21 @@ jobs:
         run: |
           docker build -t cinemaabyss-api-tests .
 
+      - name: Test network connectivity
+        run: |
+          echo "Testing connectivity from test container to services..."
+          docker run --rm --network cinemaabyss-network alpine:latest sh -c "
+            apk add --no-cache curl &&
+            echo 'Testing monolith...' &&
+            curl -f http://monolith:8080/health || echo 'Monolith not reachable' &&
+            echo 'Testing movies-service...' &&
+            curl -f http://movies-service:8081/api/movies/health || echo 'Movies service not reachable' &&
+            echo 'Testing events-service...' &&
+            curl -f http://events-service:8082/api/events/health || echo 'Events service not reachable' &&
+            echo 'Testing proxy-service...' &&
+            curl -f http://proxy-service:8000/health || echo 'Proxy service not reachable'
+          "
+
       - name: Run API tests
         run: |
           # Run the tests in Docker with the same network as services
@@ -60,8 +75,15 @@ jobs:
             --network cinemaabyss-network \
             -v "$(pwd)/tests/postman/reports:/app/reports" \
             cinemaabyss-api-tests --environment docker
-        
-      
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: tests/postman/reports/
+          retention-days: 30
+
       - name: Stop services
         if: always()
         run: docker compose down
