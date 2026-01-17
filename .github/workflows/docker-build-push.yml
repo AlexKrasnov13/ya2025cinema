@@ -141,9 +141,15 @@ jobs:
 
       - name: Start services with Docker Compose
         run: |
-          docker compose up -d
-          echo "Waiting for services to be ready..."
-          sleep 120
+          docker compose up -d --wait
+          echo "All services are healthy and ready"
+
+      - name: Verify services status
+        run: |
+          echo "Checking services status..."
+          docker compose ps
+          echo "Checking network..."
+          docker network inspect cinemaabyss-network
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -159,8 +165,25 @@ jobs:
       - name: Run API tests
         working-directory: tests/postman
         run: |
+          # Build the Docker image
           docker build -t cinemaabyss-api-tests .
+
+          # Run the tests in Docker
           docker run --network=cinemaabyss-network -v "$(pwd)/reports:/app/reports" cinemaabyss-api-tests
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: tests/postman/reports/
+          retention-days: 30
+
+      - name: Display logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Services Logs ==="
+          docker compose logs
 
       - name: Stop services
         if: always()
